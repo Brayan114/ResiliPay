@@ -1,0 +1,22 @@
+{
+  "short_name": "ResiliPay",
+  "name": "ResiliPay - Offline Cryptographic Banking",
+  "description": "Offline-First Cryptographic Financial Gateway for Resilient Nigerian Communities",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "./index.html",
+  "background_color": "#070a13",
+  "theme_color": "#070a13",
+  "display": "standalone",
+  "orientation": "portrait"
+}
