@@ -544,16 +544,19 @@ function navigateTo(mode) {
     const grid = document.getElementById('workspace-grid');
     const customerSim = document.getElementById('phone-customer');
     const merchantSim = document.getElementById('phone-merchant');
+    const headerBtn = document.getElementById('header-portal-btn');
 
     // Default clean states
     portal.classList.add('hidden');
     grid.classList.remove('hidden', 'single-layout');
     customerSim.classList.add('hidden');
     merchantSim.classList.add('hidden');
+    headerBtn.classList.remove('hidden');
 
     if (mode === 'portal') {
         portal.classList.remove('hidden');
         grid.classList.add('hidden');
+        headerBtn.classList.add('hidden');
         logConsole("Navigation: Returned to ResiliPay Portal.", "info");
     } else if (mode === 'customer') {
         grid.classList.add('single-layout');
@@ -580,6 +583,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('toggle-split-btn').addEventListener('click', () => navigateTo('split'));
     document.getElementById('cust-exit-btn').addEventListener('click', () => navigateTo('portal'));
     document.getElementById('merch-exit-btn').addEventListener('click', () => navigateTo('portal'));
+    document.getElementById('header-portal-btn').addEventListener('click', () => navigateTo('portal'));
     
     // Log local IP connection options for demo presentation
     setTimeout(() => {
