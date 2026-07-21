@@ -538,9 +538,48 @@ function stopCameraScanner() {
     logConsole("Camera hardware released.", "info");
 }
 
+// --- View Navigation Controllers ---
+function navigateTo(mode) {
+    const portal = document.getElementById('portal-screen');
+    const grid = document.getElementById('workspace-grid');
+    const customerSim = document.getElementById('phone-customer');
+    const merchantSim = document.getElementById('phone-merchant');
+
+    // Default clean states
+    portal.classList.add('hidden');
+    grid.classList.remove('hidden', 'single-layout');
+    customerSim.classList.add('hidden');
+    merchantSim.classList.add('hidden');
+
+    if (mode === 'portal') {
+        portal.classList.remove('hidden');
+        grid.classList.add('hidden');
+        logConsole("Navigation: Returned to ResiliPay Portal.", "info");
+    } else if (mode === 'customer') {
+        grid.classList.add('single-layout');
+        customerSim.classList.remove('hidden');
+        logConsole("Navigation: Entered Customer Wallet screen.", "info");
+    } else if (mode === 'merchant') {
+        grid.classList.add('single-layout');
+        merchantSim.classList.remove('hidden');
+        logConsole("Navigation: Entered Merchant POS Terminal screen.", "info");
+    } else if (mode === 'split') {
+        customerSim.classList.remove('hidden');
+        merchantSim.classList.remove('hidden');
+        logConsole("Navigation: Entered Side-by-Side Desktop Split-View.", "info");
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     // Initialize
     initializeWallets();
+
+    // Portal Selector Buttons
+    document.getElementById('select-customer-btn').addEventListener('click', () => navigateTo('customer'));
+    document.getElementById('select-merchant-btn').addEventListener('click', () => navigateTo('merchant'));
+    document.getElementById('toggle-split-btn').addEventListener('click', () => navigateTo('split'));
+    document.getElementById('cust-exit-btn').addEventListener('click', () => navigateTo('portal'));
+    document.getElementById('merch-exit-btn').addEventListener('click', () => navigateTo('portal'));
     
     // Log local IP connection options for demo presentation
     setTimeout(() => {

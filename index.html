@@ -36,12 +36,44 @@
             </div>
         </header>
 
+        <!-- Portal/Role Selector Screen -->
+        <div id="portal-screen" class="portal-container">
+            <div class="portal-card">
+                <div class="portal-logo">🔐</div>
+                <h2>ResiliPay Gateway</h2>
+                <p>Offline-First Cryptographic Financial Protocol</p>
+                
+                <div class="portal-options">
+                    <button class="portal-option-card" id="select-customer-btn">
+                        <div class="option-icon">👤</div>
+                        <div class="option-details">
+                            <h3>Customer Wallet</h3>
+                            <p>Sign & generate offline payment vouchers</p>
+                        </div>
+                    </button>
+
+                    <button class="portal-option-card" id="select-merchant-btn">
+                        <div class="option-icon">🏪</div>
+                        <div class="option-details">
+                            <h3>Merchant POS Terminal</h3>
+                            <p>Verify offline vouchers & collect payments</p>
+                        </div>
+                    </button>
+                </div>
+                
+                <button id="toggle-split-btn" class="split-view-link">
+                    🖥 Toggle Side-by-Side Desktop View
+                </button>
+            </div>
+        </div>
+
         <!-- Workspace Grid: Phone Simulators -->
-        <main class="workspace-grid">
+        <main class="workspace-grid hidden" id="workspace-grid">
             
             <!-- PHONE A: CUSTOMER WALLET -->
-            <section class="phone-simulator">
+            <section class="phone-simulator hidden" id="phone-customer">
                 <div class="phone-header">
+                    <span class="exit-btn" id="cust-exit-btn">🏠 Portal</span>
                     <span>10:14</span>
                     <div class="phone-status-icons">
                         <span class="net-text">Online</span>
@@ -150,8 +182,9 @@
             </section>
 
             <!-- PHONE B: MERCHANT WALLET -->
-            <section class="phone-simulator">
+            <section class="phone-simulator hidden" id="phone-merchant">
                 <div class="phone-header">
+                    <span class="exit-btn" id="merch-exit-btn">🏠 Portal</span>
                     <span>10:14</span>
                     <div class="phone-status-icons">
                         <span class="net-text">Online</span>
