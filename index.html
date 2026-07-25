@@ -159,7 +159,7 @@
                         
                         <!-- Canvas QR Code Simulator -->
                         <div class="qr-placeholder">
-                            <canvas id="qrcode-canvas" class="qr-canvas" width="144" height="144"></canvas>
+                            <div id="qrcode-container" style="width: 144px; height: 144px; display: flex; justify-content: center; align-items: center;"></div>
                         </div>
 
                         <!-- USSD Fallback Code -->
@@ -339,6 +339,7 @@
     </div>
 
     <!-- Core App JS -->
+    <script src="qrcode.js"></script>
     <script src="jsqr.js"></script>
     <script src="resilipay-sdk.js"></script>
     <script src="app.js"></script>

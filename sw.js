@@ -1,8 +1,9 @@
-const CACHE_NAME = 'resilipay-cache-v3';
+const CACHE_NAME = 'resilipay-cache-v4';
 const ASSETS = [
     './',
     './index.html',
     './index.css',
+    './qrcode.js',
     './jsqr.js',
     './resilipay-sdk.js',
     './app.js',

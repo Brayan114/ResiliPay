@@ -266,8 +266,17 @@ async function initiatePayment(amount, receiverPhone) {
         document.getElementById('cust-send-form').classList.add('hidden');
         document.getElementById('cust-voucher-screen').classList.remove('hidden');
         
-        // Draw the QR Code canvas
-        drawMockQRCode('qrcode-canvas', result.voucherString);
+        // Clear previous QR code and draw the real QR Code using QRCodeJS
+        const qrContainer = document.getElementById('qrcode-container');
+        qrContainer.innerHTML = '';
+        new QRCode(qrContainer, {
+            text: result.voucherString,
+            width: 144,
+            height: 144,
+            colorDark : "#000000",
+            colorLight : "#ffffff",
+            correctLevel : QRCode.CorrectLevel.M
+        });
         document.getElementById('raw-voucher-data').value = result.voucherString;
         document.getElementById('ussd-output-code').innerText = result.ussdCode;
 

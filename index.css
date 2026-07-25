@@ -404,10 +404,13 @@ button:disabled {
 .qr-placeholder {
     width: 160px;
     height: 160px;
-    background: #1e1e2d;
+    background: #ffffff;
     border-radius: 12px;
     border: 1px solid var(--border-color);
     padding: 8px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 .qr-canvas {
