@@ -1,8 +1,10 @@
-const CACHE_NAME = 'resilipay-cache-v2';
+const CACHE_NAME = 'resilipay-cache-v3';
 const ASSETS = [
     './',
     './index.html',
     './index.css',
+    './jsqr.js',
+    './resilipay-sdk.js',
     './app.js',
     './manifest.json',
     'https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Outfit:wght@300;400;500;600;700&display=swap'

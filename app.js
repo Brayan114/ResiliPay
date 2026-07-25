@@ -501,6 +501,7 @@ function renderMerchantHistory() {
 
 // --- UI Event Bindings & Camera Scanner Setup ---
 let cameraStream = null;
+let scannerLoopActive = false;
 
 async function startCameraScanner() {
     logConsole("Initializing camera hardware...", "info");
@@ -516,7 +517,10 @@ async function startCameraScanner() {
         
         container.classList.remove('hidden');
         openBtn.classList.add('hidden');
-        logConsole("Webcam feed active. Awaiting frame capture...", "success");
+        logConsole("Webcam feed active. Auto-scanning for Customer QR Code...", "success");
+
+        scannerLoopActive = true;
+        requestAnimationFrame(tickScan);
     } catch (err) {
         logConsole(`Camera access denied or unavailable: ${err.message}. Using manual fallback.`, "warning");
         alert("Camera access failed. Please paste the token manually in the input below.");
@@ -528,6 +532,8 @@ function stopCameraScanner() {
     const openBtn = document.getElementById('open-scanner-btn');
     const video = document.getElementById('scanner-video');
 
+    scannerLoopActive = false;
+
     if (cameraStream) {
         cameraStream.getTracks().forEach(track => track.stop());
         cameraStream = null;
@@ -536,6 +542,37 @@ function stopCameraScanner() {
     container.classList.add('hidden');
     openBtn.classList.remove('hidden');
     logConsole("Camera hardware released.", "info");
+}
+
+function tickScan() {
+    if (!scannerLoopActive || !cameraStream) return;
+    const video = document.getElementById('scanner-video');
+    
+    if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth || 320;
+        canvas.height = video.videoHeight || 240;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        try {
+            const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                inversionAttempts: "dontInvert",
+            });
+            
+            if (code && code.data) {
+                logConsole("✨ [QR SCAN] Found active transaction voucher QR code!", "success");
+                stopCameraScanner();
+                scanVoucher(code.data);
+                return;
+            }
+        } catch (err) {
+            console.error("QR Scan parsing error:", err);
+        }
+    }
+    
+    requestAnimationFrame(tickScan);
 }
 
 // --- View Navigation Controllers ---
@@ -706,17 +743,17 @@ document.addEventListener('DOMContentLoaded', () => {
         closeScannerBtn.addEventListener('click', stopCameraScanner);
     }
 
-    // Capture Scan & Verify
+    // Capture Scan & Verify (Simulate Scan on Single Screen / Mock Fallback)
     const captureScanBtn = document.getElementById('capture-scan-btn');
     if (captureScanBtn) {
         captureScanBtn.addEventListener('click', async () => {
-            logConsole("Capturing frame and running cryptographic OCR...", "info");
+            logConsole("Simulating scan from local wallet storage...", "info");
             
             // In a simulated scan, we pull the active transaction voucher string from Phone A's UI.
-            // This provides 100% reliable scan results for live demos without failing due to webcam glares.
+            // This provides 100% reliable scan results for live demos on a single screen without camera alignment.
             const voucherString = document.getElementById('raw-voucher-data').value;
             if (!voucherString) {
-                alert("Scan failed: No active cryptographic token found on Phone A. Generate a voucher first!");
+                alert("Simulated Scan failed: No active cryptographic token found in Customer Wallet. Generate a voucher first!");
                 stopCameraScanner();
                 return;
             }
