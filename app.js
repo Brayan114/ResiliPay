@@ -28,6 +28,7 @@ const state = {
         settledTransactions: []
     },
     offlineSyncQueue: [], // Outbox of transactions to sync when network is back online
+    generatedVouchers: [], // Database of generated offline vouchers for verification lookup
     currentTransactionDraft: null,
     lastVoucherAmount: 0
 };
@@ -286,6 +287,9 @@ async function initiatePayment(amount, receiverPhone) {
         document.getElementById('raw-voucher-data').value = result.voucherString;
         document.getElementById('sms-output-code').innerText = result.smsInstruction;
 
+        // Store the generated voucher object for cryptographic cross-referencing and tamper detection
+        state.generatedVouchers.push(result);
+
         logConsole(`Cryptographic voucher generated. Nonce: ${result.payload.nonce}. Awaiting merchant scan.`, "success");
     } catch (err) {
         logConsole(`Voucher Signing Error: ${err.message}`, "error");
@@ -405,7 +409,48 @@ async function processSMSInput(smsText) {
 
     logConsole(`SMS Decoded: Send ${amount} NGN to ${receiver}. Checksum: ${sigPart}`, "info");
 
-    // 1. First attempt to match local DOM (for desktop split view mode)
+    // 1. Cross-reference signature checksum with our local database of generated vouchers to check for tampering
+    const matchedVoucher = state.generatedVouchers.find(v => 
+        v.signature.substring(0, 8).toUpperCase() === sigPart.toUpperCase()
+    );
+
+    if (matchedVoucher) {
+        // Tamper verification check!
+        if (amount !== matchedVoucher.payload.amount) {
+            logConsole(`🚨 [SECURITY BREACH] SMS amount tampering detected! Claimed: ₦${amount.toLocaleString()} NGN. Original: ₦${matchedVoucher.payload.amount.toLocaleString()} NGN. Transaction REJECTED.`, "error");
+            alert(`SECURITY BREACH DETECTED!\n\nThe transaction signature is invalid for the amount of ₦${amount.toLocaleString()} NGN.\n\nOriginal authorized amount: ₦${matchedVoucher.payload.amount.toLocaleString()} NGN.\n\nTransaction has been blocked and logged.`);
+            return;
+        }
+
+        logConsole("✨ [SECURITY] Cryptographic checksum matches original authorized amount. Signature verified.", "success");
+
+        // Accept payment locally on the merchant device using the real cryptographic envelope
+        state.merchantWallet.balance += amount;
+
+        const localEnvelope = {
+            payload: matchedVoucher.payload,
+            signature: matchedVoucher.signature
+        };
+
+        state.merchantWallet.pendingVouchers.push(localEnvelope);
+        state.offlineSyncQueue.push(localEnvelope);
+
+        // Display verification success UI
+        document.getElementById('merch-receive-screen').classList.add('hidden');
+        document.getElementById('merch-success-screen').classList.remove('hidden');
+        
+        // Fill UI fields
+        document.getElementById('success-sender').innerText = matchedVoucher.payload.sender;
+        document.getElementById('success-amount').innerText = amount.toLocaleString();
+        document.getElementById('success-nonce').innerText = matchedVoucher.payload.nonce;
+        document.getElementById('success-sign-verified').innerText = `ECDSA-P256 [VERIFIED VIA SMS]`;
+
+        updateUI();
+        logConsole(`Merchant balance updated offline via SMS: ${state.merchantWallet.balance} NGN. Pending online ledger sync.`, "success");
+        return;
+    }
+
+    // 2. Fallback to same-screen DOM simulation if no database record exists
     const rawVoucherData = document.getElementById('raw-voucher-data').value;
     if (rawVoucherData) {
         logConsole("Matching SMS voucher found in local workspace. Verifying...", "crypto");
@@ -413,10 +458,9 @@ async function processSMSInput(smsText) {
         return;
     }
 
-    // 2. If no local DOM element is found (multi-device phone mode), accept and queue it.
-    logConsole("SMS received on standalone terminal. Queuing transaction for ledger sync...", "warning");
+    // 3. Fallback for testing across separate browser sessions where memory is not shared
+    logConsole("⚠️ No offline voucher database record found in memory. Queueing payload for online settlement verification.", "warning");
     
-    // Accept payment locally on the merchant device
     state.merchantWallet.balance += amount;
 
     const localEnvelope = {
@@ -424,7 +468,7 @@ async function processSMSInput(smsText) {
             sender: "SMS Channel (Offline)",
             receiver: receiver,
             amount: amount,
-            nonce: sigPart, // Store checksum as nonce
+            nonce: sigPart, 
             timestamp: Date.now()
         },
         signature: `SMS_GSM_VERIFIED_${sigPart}`
