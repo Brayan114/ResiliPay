@@ -89,13 +89,14 @@
             };
 
             const voucherString = btoa(JSON.stringify(envelope));
-            const ussdCode = `*901*16*${amount}*${signature.substring(0, 6).toUpperCase()}#`;
+            const smsInstruction = `PAY ${amount} TO ${receiver} CODE ${signature.substring(0, 8).toUpperCase()}`;
 
             return {
                 voucherString,
                 payload,
                 signature,
-                ussdCode
+                smsInstruction,
+                ussdCode: smsInstruction // keeping alias for compatibility
             };
         }
 

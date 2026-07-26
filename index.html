@@ -162,10 +162,10 @@
                             <div id="qrcode-container" style="width: 200px; height: 200px; display: flex; justify-content: center; align-items: center;"></div>
                         </div>
 
-                        <!-- USSD Fallback Code -->
+                        <!-- SMS Fallback Code -->
                         <div style="width: 100%; text-align: left;">
-                            <label>USSD Fallback Code (For GSM basic phones)</label>
-                            <div class="ussd-display-box" id="ussd-output-code">*901*16*...#</div>
+                            <label>SMS Fallback Instruction (For basic phones)</label>
+                            <div class="ussd-display-box" id="sms-output-code" style="font-family: monospace; font-size: 0.85rem; letter-spacing: 0.05em; background: #131728; border-color: #2e3552;">PAY 0 TO ... CODE ...</div>
                         </div>
 
                         <div style="width: 100%; text-align: left;">
@@ -231,10 +231,10 @@
                         <button id="submit-voucher-btn" style="margin-bottom: 1.2rem;">🔍 Verify Manual Token</button>
 
                         <div class="form-group">
-                            <label for="manual-ussd-input">USSD / SMS Code Entry</label>
-                            <input type="text" id="manual-ussd-input" placeholder="e.g. *901*16*5000*F9E1#">
+                            <label for="manual-sms-input">SMS Verification Entry</label>
+                            <input type="text" id="manual-sms-input" placeholder="e.g. PAY 5000 TO +234 703 545 3003 CODE F9E1A2">
                         </div>
-                        <button id="submit-ussd-btn" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); margin-bottom: 1.5rem;">📱 Process USSD Command</button>
+                        <button id="submit-sms-btn" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); margin-bottom: 1.5rem;">💬 Process SMS Command</button>
 
                         <!-- Local History of Settle Queue -->
                         <h4 style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.4rem;">RECENT SETTLED TRANSACTIONS</h4>

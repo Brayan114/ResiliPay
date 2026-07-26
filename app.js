@@ -284,7 +284,7 @@ async function initiatePayment(amount, receiverPhone) {
             qrContainer.innerHTML = '<div style="color: #f87171; font-size: 0.75rem; text-align: center; padding: 1rem;">QR too large.<br>Copy token below.</div>';
         }
         document.getElementById('raw-voucher-data').value = result.voucherString;
-        document.getElementById('ussd-output-code').innerText = result.ussdCode;
+        document.getElementById('sms-output-code').innerText = result.smsInstruction;
 
         logConsole(`Cryptographic voucher generated. Nonce: ${result.payload.nonce}. Awaiting merchant scan.`, "success");
     } catch (err) {
@@ -385,45 +385,49 @@ async function scanVoucher(envelopeString) {
 /**
  * Simulates USSD/SMS fallback verification (for basic phones)
  */
-async function processUSSDInput(ussdCode) {
-    // Format expected: *901*16*Amount*SigSub#
-    logConsole(`USSD Network Command received: ${ussdCode}`, "network");
+async function processSMSInput(smsText) {
+    if (!smsText) return;
     
-    const matches = ussdCode.match(/\*901\*16\*(\d+)\*([A-Za-z0-9]{6})#/);
+    // Trim input to remove any accidental spaces/newlines
+    smsText = smsText.trim();
+    logConsole(`SMS Command received: "${smsText}"`, "network");
+    
+    // Match: PAY [amount] TO [phone] CODE [checksum] (case-insensitive and handles spacing)
+    const matches = smsText.match(/PAY\s+(\d+)\s+TO\s+([^\s]+)\s+CODE\s+([A-Za-z0-9+/=]+)/i);
     if (!matches) {
-        alert("Invalid USSD transaction code format. Try copying it exactly from customer screen.");
+        alert("Invalid SMS transaction format. Ensure it matches: PAY [Amount] TO [Phone] CODE [Signature] (e.g., PAY 5000 TO +2347035453003 CODE F9E1A2B3)");
         return;
     }
 
     const amount = parseInt(matches[1]);
-    const sigPart = matches[2];
+    const receiver = matches[2];
+    const sigPart = matches[3];
 
-    logConsole(`USSD Decoded: Transfer ${amount} NGN. Signature Checksum: ${sigPart}`, "info");
+    logConsole(`SMS Decoded: Send ${amount} NGN to ${receiver}. Checksum: ${sigPart}`, "info");
 
     // 1. First attempt to match local DOM (for desktop split view mode)
     const rawVoucherData = document.getElementById('raw-voucher-data').value;
     if (rawVoucherData) {
-        logConsole("Matching USSD voucher found in local workspace. Verifying...", "crypto");
+        logConsole("Matching SMS voucher found in local workspace. Verifying...", "crypto");
         await scanVoucher(rawVoucherData);
         return;
     }
 
     // 2. If no local DOM element is found (multi-device phone mode), accept and queue it.
-    // In a real banking system, this USSD code acts as a payload that is routed to the core banking ledger.
-    logConsole("USSD received on standalone terminal. Queuing transaction for ledger sync...", "warning");
+    logConsole("SMS received on standalone terminal. Queuing transaction for ledger sync...", "warning");
     
     // Accept payment locally on the merchant device
     state.merchantWallet.balance += amount;
 
     const localEnvelope = {
         payload: {
-            sender: "USSD Channel (GSM)",
-            receiver: state.merchantWallet.phone,
+            sender: "SMS Channel (Offline)",
+            receiver: receiver,
             amount: amount,
             nonce: sigPart, // Store checksum as nonce
             timestamp: Date.now()
         },
-        signature: `USSD_GSM_VERIFIED_${sigPart}`
+        signature: `SMS_GSM_VERIFIED_${sigPart}`
     };
 
     state.merchantWallet.pendingVouchers.push(localEnvelope);
@@ -434,13 +438,13 @@ async function processUSSDInput(ussdCode) {
     document.getElementById('merch-success-screen').classList.remove('hidden');
     
     // Fill UI fields
-    document.getElementById('success-sender').innerText = "USSD Channel (GSM)";
+    document.getElementById('success-sender').innerText = "SMS Channel (Offline)";
     document.getElementById('success-amount').innerText = amount.toLocaleString();
     document.getElementById('success-nonce').innerText = sigPart;
-    document.getElementById('success-sign-verified').innerText = `USSD Code: ${sigPart} (GSM Offline Queue)`;
+    document.getElementById('success-sign-verified').innerText = `SMS Code: ${sigPart} (Offline Queue)`;
 
     updateUI();
-    logConsole(`Merchant balance updated offline via USSD: ${state.merchantWallet.balance} NGN. Pending online ledger sync.`, "success");
+    logConsole(`Merchant balance updated offline via SMS: ${state.merchantWallet.balance} NGN. Pending online ledger sync.`, "success");
 }
 
 /**
@@ -852,12 +856,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Manual USSD Code Entry Submission
-    const submitUssdBtn = document.getElementById('submit-ussd-btn');
-    if (submitUssdBtn) {
-        submitUssdBtn.addEventListener('click', async () => {
-            const ussd = document.getElementById('manual-ussd-input').value;
-            await processUSSDInput(ussd);
+    // Manual SMS Code Entry Submission
+    const submitSmsBtn = document.getElementById('submit-sms-btn');
+    if (submitSmsBtn) {
+        submitSmsBtn.addEventListener('click', async () => {
+            const sms = document.getElementById('manual-sms-input').value;
+            await processSMSInput(sms);
         });
     }
 
@@ -868,7 +872,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('merch-receive-screen').classList.remove('hidden');
             document.getElementById('merch-success-screen').classList.add('hidden');
             document.getElementById('manual-voucher-data').value = '';
-            document.getElementById('manual-ussd-input').value = '';
+            document.getElementById('manual-sms-input').value = '';
         });
     }
 
