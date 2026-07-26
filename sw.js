@@ -1,4 +1,4 @@
-const CACHE_NAME = 'resilipay-cache-v5';
+const CACHE_NAME = 'resilipay-cache-v6';
 const ASSETS = [
     './',
     './index.html',
@@ -23,7 +23,7 @@ self.addEventListener('install', (e) => {
     );
 });
 
-// Activate Event - Clean old caches
+// Activate Event - Clean old caches and take control immediately
 self.addEventListener('activate', (e) => {
     e.waitUntil(
         caches.keys().then((keys) => {
@@ -39,17 +39,26 @@ self.addEventListener('activate', (e) => {
     );
 });
 
-// Fetch Event - Serve Cached Assets Offline
+// Fetch Event - Network-First strategy (try server, fall back to cache for offline)
 self.addEventListener('fetch', (e) => {
     e.respondWith(
-        caches.match(e.request).then((cachedResponse) => {
-            if (cachedResponse) {
-                return cachedResponse;
-            }
-            return fetch(e.request).catch(() => {
-                // If offline and request fails, we gracefully return fallback if needed
-                console.log('[Service Worker] Fetch failed, device offline.');
-            });
-        })
+        fetch(e.request)
+            .then((networkResponse) => {
+                // Got a fresh response from the server — update the cache with it
+                const clone = networkResponse.clone();
+                caches.open(CACHE_NAME).then((cache) => {
+                    cache.put(e.request, clone);
+                });
+                return networkResponse;
+            })
+            .catch(() => {
+                // Network failed (offline) — serve from cache
+                return caches.match(e.request).then((cachedResponse) => {
+                    return cachedResponse || new Response('Offline and no cached version available.', {
+                        status: 503,
+                        statusText: 'Service Unavailable'
+                    });
+                });
+            })
     );
 });
