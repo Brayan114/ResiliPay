@@ -450,12 +450,22 @@ async function processSMSInput(smsText) {
         return;
     }
 
-    // 2. Fallback to same-screen DOM simulation if no database record exists
+    // 2. Fallback to same-screen DOM simulation if no database record exists (runs tamper check against DOM voucher)
     const rawVoucherData = document.getElementById('raw-voucher-data').value;
     if (rawVoucherData) {
-        logConsole("Matching SMS voucher found in local workspace. Verifying...", "crypto");
-        await scanVoucher(rawVoucherData);
-        return;
+        try {
+            const envelope = JSON.parse(atob(rawVoucherData));
+            if (amount !== envelope.payload.amount) {
+                logConsole(`🚨 [SECURITY BREACH] SMS amount tampering detected! Claimed: ₦${amount.toLocaleString()} NGN. Original: ₦${envelope.payload.amount.toLocaleString()} NGN. Transaction REJECTED.`, "error");
+                alert(`SECURITY BREACH DETECTED!\n\nThe transaction signature is invalid for the amount of ₦${amount.toLocaleString()} NGN.\n\nOriginal authorized amount: ₦${envelope.payload.amount.toLocaleString()} NGN.\n\nTransaction has been blocked and logged.`);
+                return;
+            }
+            logConsole("Matching SMS voucher found in local workspace. Verifying...", "crypto");
+            await scanVoucher(rawVoucherData);
+            return;
+        } catch (e) {
+            console.error("DOM fallback parsing error:", e);
+        }
     }
 
     // 3. Fallback for testing across separate browser sessions where memory is not shared
@@ -520,7 +530,9 @@ async function settleOfflineTransactions() {
         const isValid = verification.isValid;
         
         if (!isValid) {
-            logConsole(`Fraud prevention triggered: Transaction nonce ${payload.nonce} signature invalid! Settle rejected.`, "error");
+            logConsole(`🚨 [FRAUD ALERT] Transaction verification failed during ledger sync! Signature invalid or tampered. Reversing merchant pending balance of ₦${payload.amount.toLocaleString()} NGN.`, "error");
+            // Reverse merchant local balance
+            state.merchantWallet.balance -= payload.amount;
             state.offlineSyncQueue.shift();
             continue;
         }
