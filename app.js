@@ -766,26 +766,50 @@ document.addEventListener('DOMContentLoaded', () => {
         closeScannerBtn.addEventListener('click', stopCameraScanner);
     }
 
-    // Capture Scan & Verify (Simulate Scan on Single Screen / Mock Fallback)
+    // Capture Scan & Verify (Smart Capture: decodes camera frame first, falls back to DOM if same-screen)
     const captureScanBtn = document.getElementById('capture-scan-btn');
     if (captureScanBtn) {
         captureScanBtn.addEventListener('click', async () => {
-            logConsole("Simulating scan from local wallet storage...", "info");
+            logConsole("Attempting to capture and decode QR code from camera feed...", "info");
             
-            // In a simulated scan, we pull the active transaction voucher string from Phone A's UI.
-            // This provides 100% reliable scan results for live demos on a single screen without camera alignment.
+            // 1. Try decoding the active camera frame using jsQR
+            const video = document.getElementById('scanner-video');
+            if (cameraStream && video.readyState === video.HAVE_ENOUGH_DATA) {
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth || 320;
+                canvas.height = video.videoHeight || 240;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                
+                try {
+                    const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                        inversionAttempts: "dontInvert",
+                    });
+                    if (code && code.data) {
+                        logConsole("✨ [QR SCAN] Cryptographic QR code decoded successfully from camera capture!", "success");
+                        stopCameraScanner();
+                        await scanVoucher(code.data);
+                        return;
+                    }
+                } catch (err) {
+                    console.error("Manual QR capture decoding error:", err);
+                }
+            }
+
+            // 2. Fallback to same-screen DOM simulation (useful for desktop presentation)
+            logConsole("No QR code detected in camera feed. Checking local DOM fallback...", "warning");
             const voucherString = document.getElementById('raw-voucher-data').value;
-            if (!voucherString) {
-                alert("Simulated Scan failed: No active cryptographic token found in Customer Wallet. Generate a voucher first!");
+            if (voucherString) {
+                logConsole("✨ [SIMULATION] Using same-screen simulated transaction payload.", "success");
                 stopCameraScanner();
+                await scanVoucher(voucherString);
                 return;
             }
 
-            // Close scanner first
-            stopCameraScanner();
-            
-            // Verify
-            await scanVoucher(voucherString);
+            // 3. Both failed
+            alert("Verification Failed: No QR code detected in the camera frame, and no simulated token found in Customer Wallet. Please align the camera directly over the QR code and capture again.");
+            logConsole("QR capture failed: No readable token found in camera feed or local workspace.", "error");
         });
     }
 
