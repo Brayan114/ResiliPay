@@ -344,36 +344,20 @@
     <script src="resilipay-sdk.js"></script>
     <script src="app.js"></script>
     <script>
-        // Register PWA Service Worker & Handle Auto-Updates
+        // Clean up any previously installed Service Workers and their caches.
+        // This runs once on page load and permanently removes stale cached versions.
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js')
-                    .then(reg => {
-                        console.log('Service Worker Registered Successfully', reg.scope);
-                        
-                        // Check for updates on load
-                        reg.addEventListener('updatefound', () => {
-                            const newWorker = reg.installing;
-                            newWorker.addEventListener('statechange', () => {
-                                // If a new worker is installed, skip waiting is triggered in sw.js,
-                                // which will fire the controllerchange event to reload the page.
-                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                    console.log('New version detected! Preparing to reload...');
-                                }
-                            });
-                        });
-                    })
-                    .catch(err => console.log('Service Worker Registration Failed', err));
+            navigator.serviceWorker.getRegistrations().then(registrations => {
+                registrations.forEach(reg => {
+                    reg.unregister();
+                    console.log('[Cleanup] Unregistered old service worker:', reg.scope);
+                });
             });
-
-            // Reload the page automatically when the new service worker takes control (skipWaiting)
-            let refreshing = false;
-            navigator.serviceWorker.addEventListener('controllerchange', () => {
-                if (!refreshing) {
-                    refreshing = true;
-                    console.log('Service Worker activated. Reloading page to apply updates...');
-                    window.location.reload();
-                }
+            caches.keys().then(keys => {
+                keys.forEach(key => {
+                    caches.delete(key);
+                    console.log('[Cleanup] Deleted old cache:', key);
+                });
             });
         }
     </script>
