@@ -269,14 +269,20 @@ async function initiatePayment(amount, receiverPhone) {
         // Clear previous QR code and draw the real QR Code using QRCodeJS
         const qrContainer = document.getElementById('qrcode-container');
         qrContainer.innerHTML = '';
-        new QRCode(qrContainer, {
-            text: result.voucherString,
-            width: 144,
-            height: 144,
-            colorDark : "#000000",
-            colorLight : "#ffffff",
-            correctLevel : QRCode.CorrectLevel.M
-        });
+        try {
+            new QRCode(qrContainer, {
+                text: result.voucherString,
+                width: 200,
+                height: 200,
+                colorDark : "#000000",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.L
+            });
+            logConsole("QR Code generated successfully.", "success");
+        } catch (qrErr) {
+            logConsole(`QR Code generation failed (data too long): ${qrErr.message}. Use manual token copy instead.`, "warning");
+            qrContainer.innerHTML = '<div style="color: #f87171; font-size: 0.75rem; text-align: center; padding: 1rem;">QR too large.<br>Copy token below.</div>';
+        }
         document.getElementById('raw-voucher-data').value = result.voucherString;
         document.getElementById('ussd-output-code').innerText = result.ussdCode;
 

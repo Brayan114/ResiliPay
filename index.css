@@ -402,8 +402,8 @@ button:disabled {
 }
 
 .qr-placeholder {
-    width: 160px;
-    height: 160px;
+    width: 216px;
+    height: 216px;
     background: #ffffff;
     border-radius: 12px;
     border: 1px solid var(--border-color);
