@@ -697,6 +697,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (cancelConfirmBtn) {
         cancelConfirmBtn.addEventListener('click', () => {
             state.currentTransactionDraft = null;
+            document.getElementById('cust-pin').value = '';
             document.getElementById('cust-send-form').classList.remove('hidden');
             document.getElementById('cust-confirm-screen').classList.add('hidden');
             logConsole("Transaction review cancelled. Returned to form.", "info");
@@ -709,8 +710,14 @@ document.addEventListener('DOMContentLoaded', () => {
         confirmSignBtn.addEventListener('click', async () => {
             const pin = document.getElementById('cust-pin').value;
             
+            if (!pin || pin.length < 4) {
+                alert("Please enter your 4-digit wallet PIN to authorize this transaction.");
+                logConsole("Transaction signing blocked: PIN not entered.", "warning");
+                return;
+            }
+
             if (pin !== '1234') {
-                alert("Security Authorization Failed: Invalid PIN code! Hint: try '1234'");
+                alert("Security Authorization Failed: Invalid PIN code!");
                 logConsole("Transaction signing rejected: Invalid wallet authorization PIN.", "error");
                 return;
             }
@@ -719,6 +726,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const { amount, receiver } = state.currentTransactionDraft;
             state.currentTransactionDraft = null;
+            document.getElementById('cust-pin').value = '';
             
             // Hide confirmation screen
             document.getElementById('cust-confirm-screen').classList.add('hidden');
