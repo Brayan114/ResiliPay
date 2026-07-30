@@ -396,18 +396,30 @@ async function processSMSInput(smsText) {
     smsText = smsText.trim();
     logConsole(`SMS Command received: "${smsText}"`, "network");
     
-    // Match: PAY [amount] TO [phone] CODE [checksum] (case-insensitive and handles spacing)
-    const matches = smsText.match(/PAY\s+(\d+)\s+TO\s+([^\s]+)\s+CODE\s+([A-Za-z0-9+/=]+)/i);
-    if (!matches) {
-        alert("Invalid SMS transaction format. Ensure it matches: PAY [Amount] TO [Phone] CODE [Signature] (e.g., PAY 5000 TO +2347035453003 CODE F9E1A2B3)");
-        return;
+    let amount = 0;
+    let receiver = '';
+    let sigPart = '';
+
+    // Match full SMS string: PAY [amount] TO [phone] CODE [checksum] (supports spaces in phone number)
+    const matches = smsText.match(/PAY\s+(\d+)\s+TO\s+(.+?)\s+CODE\s+([A-Za-z0-9+/=]+)/i);
+
+    if (matches) {
+        amount = parseInt(matches[1]);
+        receiver = matches[2].trim();
+        sigPart = matches[3].trim();
+    } else {
+        // Check if user entered just the CODE string (e.g. F9E1A2B3)
+        const codeOnlyMatch = smsText.match(/^([A-Za-z0-9+/=]{6,12})$/);
+        if (codeOnlyMatch) {
+            sigPart = codeOnlyMatch[1].trim();
+            logConsole(`SMS Code-Only detected: Checksum ${sigPart}. Searching database...`, "info");
+        } else {
+            alert("Invalid SMS transaction format. Ensure it matches:\nPAY [Amount] TO [Phone] CODE [Signature]\n(e.g., PAY 5000 TO +234 703 545 3003 CODE F9E1A2B3)\nor enter just the CODE.");
+            return;
+        }
     }
 
-    const amount = parseInt(matches[1]);
-    const receiver = matches[2];
-    const sigPart = matches[3];
-
-    logConsole(`SMS Decoded: Send ${amount} NGN to ${receiver}. Checksum: ${sigPart}`, "info");
+    logConsole(`SMS Decoded: Checksum: ${sigPart}${amount ? `, Amount: ${amount} NGN` : ''}`, "info");
 
     // 1. Cross-reference signature checksum with our local database of generated vouchers to check for tampering
     const matchedVoucher = state.generatedVouchers.find(v => 
@@ -416,11 +428,14 @@ async function processSMSInput(smsText) {
 
     if (matchedVoucher) {
         // Tamper verification check!
-        if (amount !== matchedVoucher.payload.amount) {
+        if (amount > 0 && amount !== matchedVoucher.payload.amount) {
             logConsole(`🚨 [SECURITY BREACH] SMS amount tampering detected! Claimed: ₦${amount.toLocaleString()} NGN. Original: ₦${matchedVoucher.payload.amount.toLocaleString()} NGN. Transaction REJECTED.`, "error");
             alert(`SECURITY BREACH DETECTED!\n\nThe transaction signature is invalid for the amount of ₦${amount.toLocaleString()} NGN.\n\nOriginal authorized amount: ₦${matchedVoucher.payload.amount.toLocaleString()} NGN.\n\nTransaction has been blocked and logged.`);
             return;
         }
+
+        // Auto-assign amount from voucher payload if code-only input was used
+        amount = matchedVoucher.payload.amount;
 
         logConsole("✨ [SECURITY] Cryptographic checksum matches original authorized amount. Signature verified.", "success");
 
