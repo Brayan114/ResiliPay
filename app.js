@@ -30,7 +30,8 @@ const state = {
     offlineSyncQueue: [], // Outbox of transactions to sync when network is back online
     generatedVouchers: [], // Database of generated offline vouchers for verification lookup
     currentTransactionDraft: null,
-    lastVoucherAmount: 0
+    lastVoucherAmount: 0,
+    activeVoucherClaimed: false
 };
 
 // --- Cryptographic Engine ---
@@ -256,6 +257,14 @@ async function initiatePayment(amount, receiverPhone) {
 
         // Save the amount for potential offline void/refunds
         state.lastVoucherAmount = amount;
+        state.activeVoucherClaimed = false;
+
+        const voidBtn = document.getElementById('void-voucher-btn');
+        if (voidBtn) {
+            voidBtn.disabled = false;
+            voidBtn.style.opacity = '1';
+            voidBtn.innerText = '❌ Void & Refund';
+        }
 
         // Update Customer wallet state (subtract locally to reflect balance change)
         state.customerWallet.balance -= amount;
@@ -301,6 +310,12 @@ async function initiatePayment(amount, receiverPhone) {
  */
 function voidVoucher() {
     if (state.lastVoucherAmount <= 0) return;
+
+    if (state.activeVoucherClaimed) {
+        alert("Security Alert: Cannot void voucher! This payment voucher has already been accepted and claimed by the merchant terminal.");
+        logConsole("🚨 [SECURITY BREACH] Attempted to void an already-claimed payment voucher! Void request BLOCKED.", "error");
+        return;
+    }
 
     logConsole(`Voiding active cryptographic voucher...`, "warning");
     
@@ -355,6 +370,15 @@ async function scanVoucher(envelopeString) {
 
             // Accept payment offline: Add to merchant's local balances and store in sync queue
             state.merchantWallet.balance += payload.amount;
+            state.activeVoucherClaimed = true;
+
+            // Update Void button on customer screen if in same workspace
+            const voidBtn = document.getElementById('void-voucher-btn');
+            if (voidBtn) {
+                voidBtn.disabled = true;
+                voidBtn.style.opacity = '0.5';
+                voidBtn.innerText = '🔒 Claimed by Merchant';
+            }
             
             // Re-envelope for matching local storage state
             const localEnvelope = {
@@ -441,6 +465,15 @@ async function processSMSInput(smsText) {
 
         // Accept payment locally on the merchant device using the real cryptographic envelope
         state.merchantWallet.balance += amount;
+        state.activeVoucherClaimed = true;
+
+        // Disable the void button on customer screen if in same workspace
+        const voidBtn = document.getElementById('void-voucher-btn');
+        if (voidBtn) {
+            voidBtn.disabled = true;
+            voidBtn.style.opacity = '0.5';
+            voidBtn.innerText = '🔒 Claimed by Merchant';
+        }
 
         const localEnvelope = {
             payload: matchedVoucher.payload,
