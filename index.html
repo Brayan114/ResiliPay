@@ -173,9 +173,8 @@
                             <textarea class="copy-area" id="raw-voucher-data" readonly onclick="this.select()"></textarea>
                         </div>
 
-                        <div style="display: flex; gap: 8px; width: 100%;">
-                            <button id="new-tx-btn" style="background: #1e293b; flex: 1;">New Tx</button>
-                            <button id="void-voucher-btn" style="background: linear-gradient(135deg, #7f1d1d 0%, #ef4444 100%); flex: 1;">❌ Void & Refund</button>
+                        <div style="width: 100%; margin-top: 0.5rem;">
+                            <button id="new-tx-btn" style="background: #1e293b; width: 100%;">Done / New Transaction</button>
                         </div>
                     </div>
                 </div>
@@ -255,7 +254,15 @@
                             </div>
                             <div class="receipt-row">
                                 <span>Amount Received:</span>
-                                <span style="color: var(--emerald); font-weight: bold;">₦<span id="success-amount">0</span></span>
+                                <span style="color: var(--emerald); font-weight: bold;">+₦<span id="success-amount">0</span> NGN</span>
+                            </div>
+                            <div class="receipt-row">
+                                <span>Previous Balance:</span>
+                                <span>₦<span id="success-prev-bal">15,000</span> NGN</span>
+                            </div>
+                            <div class="receipt-row" style="background: rgba(16, 185, 129, 0.12); border-radius: 6px; padding: 4px 8px; margin: 4px 0;">
+                                <span style="font-weight: 600; color: var(--text-primary);">New POS Balance:</span>
+                                <span style="color: var(--emerald); font-weight: bold; font-size: 0.95rem;">₦<span id="success-new-bal">20,000</span> NGN</span>
                             </div>
                             <div class="receipt-row">
                                 <span>Transaction Nonce:</span>

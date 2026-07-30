@@ -368,17 +368,9 @@ async function scanVoucher(envelopeString) {
                 return;
             }
 
-            // Accept payment offline: Add to merchant's local balances and store in sync queue
+            const prevBalance = state.merchantWallet.balance;
             state.merchantWallet.balance += payload.amount;
             state.activeVoucherClaimed = true;
-
-            // Update Void button on customer screen if in same workspace
-            const voidBtn = document.getElementById('void-voucher-btn');
-            if (voidBtn) {
-                voidBtn.disabled = true;
-                voidBtn.style.opacity = '0.5';
-                voidBtn.innerText = '🔒 Claimed by Merchant';
-            }
             
             // Re-envelope for matching local storage state
             const localEnvelope = {
@@ -395,6 +387,8 @@ async function scanVoucher(envelopeString) {
             // Fill details
             document.getElementById('success-sender').innerText = payload.sender;
             document.getElementById('success-amount').innerText = payload.amount.toLocaleString();
+            document.getElementById('success-prev-bal').innerText = prevBalance.toLocaleString();
+            document.getElementById('success-new-bal').innerText = state.merchantWallet.balance.toLocaleString();
             document.getElementById('success-nonce').innerText = payload.nonce;
             document.getElementById('success-sign-verified').innerText = `ECDSA-P256 [VERIFIED OFFLINE]`;
 
@@ -463,17 +457,9 @@ async function processSMSInput(smsText) {
 
         logConsole("✨ [SECURITY] Cryptographic checksum matches original authorized amount. Signature verified.", "success");
 
-        // Accept payment locally on the merchant device using the real cryptographic envelope
+        const prevBalance = state.merchantWallet.balance;
         state.merchantWallet.balance += amount;
         state.activeVoucherClaimed = true;
-
-        // Disable the void button on customer screen if in same workspace
-        const voidBtn = document.getElementById('void-voucher-btn');
-        if (voidBtn) {
-            voidBtn.disabled = true;
-            voidBtn.style.opacity = '0.5';
-            voidBtn.innerText = '🔒 Claimed by Merchant';
-        }
 
         const localEnvelope = {
             payload: matchedVoucher.payload,
@@ -490,6 +476,8 @@ async function processSMSInput(smsText) {
         // Fill UI fields
         document.getElementById('success-sender').innerText = matchedVoucher.payload.sender;
         document.getElementById('success-amount').innerText = amount.toLocaleString();
+        document.getElementById('success-prev-bal').innerText = prevBalance.toLocaleString();
+        document.getElementById('success-new-bal').innerText = state.merchantWallet.balance.toLocaleString();
         document.getElementById('success-nonce').innerText = matchedVoucher.payload.nonce;
         document.getElementById('success-sign-verified').innerText = `ECDSA-P256 [VERIFIED VIA SMS]`;
 
@@ -519,6 +507,7 @@ async function processSMSInput(smsText) {
     // 3. Fallback for testing across separate browser sessions where memory is not shared
     logConsole("⚠️ No offline voucher database record found in memory. Queueing payload for online settlement verification.", "warning");
     
+    const prevBalance = state.merchantWallet.balance;
     state.merchantWallet.balance += amount;
 
     const localEnvelope = {
@@ -542,6 +531,8 @@ async function processSMSInput(smsText) {
     // Fill UI fields
     document.getElementById('success-sender').innerText = "SMS Channel (Offline)";
     document.getElementById('success-amount').innerText = amount.toLocaleString();
+    document.getElementById('success-prev-bal').innerText = prevBalance.toLocaleString();
+    document.getElementById('success-new-bal').innerText = state.merchantWallet.balance.toLocaleString();
     document.getElementById('success-nonce').innerText = sigPart;
     document.getElementById('success-sign-verified').innerText = `SMS Code: ${sigPart} (Offline Queue)`;
 
