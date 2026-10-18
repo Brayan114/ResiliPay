@@ -1,0 +1,15 @@
+# Presentations & Slide Decks
+*.pptx
+*.ppt
+generate_deck.py
+
+# Meta Submission Guides & Upload Configurations
+ZENODO_SUBMISSION_GUIDE.md
+ACM_COMPASS_GUIDE.md
+zenodo.json
+
+# OS & Environment
+.DS_Store
+Thumbs.db
+*.log
+node_modules/
