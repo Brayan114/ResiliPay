@@ -1,6 +1,14 @@
-# ResiliPay B2B SDK & Prototype
+# ResiliPay B2B SDK & Research Prototype
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23451943.svg)](https://doi.org/10.5281/zenodo.23451943)
+[![License: CC BY 4.0](https://img.shields.io/badge/License-CC_BY_4.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/)
 
 **ResiliPay** is an offline-first, cryptographic payment protocol designed for resilient transactions in Nigerian communities experiencing unstable electricity or network connectivity. 
+
+> 📄 **Official Research Paper:** *ResiliPay: A Fault-Tolerant, Dual-Channel Cryptographic Payment Protocol for Intermittently Connected Economies*  
+> **Author:** Brayan Osinaka (*National Institute of Information Technology, Rivers State, Nigeria*)  
+> **Permanent DOI:** [https://doi.org/10.5281/zenodo.23451943](https://doi.org/10.5281/zenodo.23451943)  
+> **Full Preview:** [`paper/paper_preview.md`](paper/paper_preview.md) | **ACM COMPASS LaTeX:** [`paper/acm_compass/main.tex`](paper/acm_compass/main.tex)
 
 This repository contains:
 1. **The ResiliPay B2B SDK (`resilipay-sdk.js`)**: A reusable JavaScript library for commercial banking apps to integrate offline transactions.
@@ -80,3 +88,21 @@ To test the multi-device phone simulator:
    - On your computer: Open `http://localhost:8080`
    - On physical mobile devices (connect to same Wi-Fi):
      Open `http://[YOUR_IP_ADDRESS]:8080` (The dashboard log console prints your specific local network IP address on startup).
+
+---
+
+## 📚 Academic Citation
+
+If you use ResiliPay, its protocol design, or benchmarks in your research, please cite our official paper:
+
+```bibtex
+@article{osinaka2026resilipay,
+  title={ResiliPay: A Fault-Tolerant, Dual-Channel Cryptographic Payment Protocol for Intermittently Connected Economies},
+  author={Osinaka, Brayan},
+  journal={Zenodo},
+  year={2026},
+  month={October},
+  doi={10.5281/zenodo.23451943},
+  url={https://doi.org/10.5281/zenodo.23451943}
+}
+```

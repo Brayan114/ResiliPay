@@ -1,0 +1,28 @@
+{
+  "title": "ResiliPay: A Fault-Tolerant, Dual-Channel Cryptographic Payment Protocol for Intermittently Connected Economies",
+  "upload_type": "publication",
+  "publication_type": "preprint",
+  "description": "<p><strong>ResiliPay</strong> is an asynchronous, offline-first cryptographic payment protocol designed to sustain retail commerce during total wide-area network and telecommunication partitions.</p><p>In emerging economies such as Nigeria, recurring electrical grid collapses and cellular backhaul disruptions cause transaction failure rates between 10% and 15% during peak retail hours, imposing over ₦100 billion in annual deadweight losses across distributed agency banking networks. Existing offline proposals suffer from a fundamental trilemma: they either permit catastrophic offline double-spending, introduce delayed-settlement insolvency risks (unbacked overdrafts), or demand specialized, expensive smartcard hardware.</p><p>ResiliPay resolves this trilemma by coupling client-side asymmetric cryptography (ECDSA P-256) with hardware-enforced monotonic counters and a Pre-Allocated Offline Escrow (POE) framework hosted inside mobile Trusted Execution Environments (TEEs) to mathematically eliminate both offline double-spending and delayed-settlement insolvency without requiring distributed consensus. To bridge physical transport gaps under infrastructure failures, ResiliPay introduces an adaptive dual-channel serialization scheme: high-density optical Quick Response (QR) codes compacted by 72.4% (125 bytes, QR Version 6/8) for zero-connectivity proximity transactions, and an ultra-compact bit-packed binary encoding (86 bytes) that fits within a single GSM 7-bit SMS segment (&lt;160 characters) for wide-area cellular fallback.</p><p>Furthermore, ResiliPay implements an order-independent reconciliation state machine utilizing sliding replay-window nonce sets, guaranteeing that out-of-order merchant batch uploads after regional grid restoration achieve 100% settlement precision without false replay rejections. Empirical benchmarks demonstrate single-core clearing switch throughput exceeding 5,600 transactions/second with sub-millisecond cryptographic verification. Under a simulated post-blackout reconnection burst of 1,000 out-of-order merchant transactions with 50 injected adversarial replay attacks, ResiliPay achieves 100% settlement precision and 100% adversarial rejection in 176 ms (&gt;5,600 settled tx/sec). We outline a pragmatic three-tier hardware security model spanning dedicated Secure Elements, ARM TrustZone with Replay Protected Memory Blocks (RPMB), and bank-underwritten micro-floats, providing an actionable blueprint for sovereign financial resilience in infrastructure-challenged economies.</p>",
+  "creators": [
+    {
+      "name": "Osinaka, Brayan",
+      "affiliation": "National Institute of Information Technology, Rivers State, Nigeria"
+    }
+  ],
+  "keywords": [
+    "Offline Payments",
+    "Financial Inclusion",
+    "ICT4D",
+    "Hardware Security Modules",
+    "ARM TrustZone",
+    "ECDSA",
+    "Dual-Channel Communication",
+    "Intermittent Connectivity",
+    "Delay-Tolerant Systems",
+    "Mobile Money",
+    "Nigeria",
+    "NIBSS"
+  ],
+  "license": "CC-BY-4.0",
+  "access_right": "open"
+}

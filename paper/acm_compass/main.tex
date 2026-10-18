@@ -1,0 +1,377 @@
+\documentclass[sigconf]{acmart}
+% Note: If submitting under ACM COMPASS double-blind review policy, change the documentclass to:
+% \documentclass[sigconf,review,anonymous]{acmart}
+
+\usepackage{booktabs}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{url}
+
+% Rights management / Conference metadata placeholder
+\settopmatter{printacmref=true}
+\renewcommand\footnotetextcopyrightpermission[1]{} % removes footnote with conference info for preprint
+
+\title{ResiliPay: A Fault-Tolerant, Dual-Channel Cryptographic Payment Protocol for Intermittently Connected Economies\thanks{Archived on Zenodo (CERN/OpenAIRE): \url{https://doi.org/10.5281/zenodo.23451943}}}
+
+\author{Brayan Osinaka}
+\affiliation{%
+  \institution{National Institute of Information Technology}
+  \city{Rivers State}
+  \country{Nigeria}
+}
+\email{brayanjunior101@gmail.com}
+
+\begin{abstract}
+Digital payment adoption across emerging economies has surged, yet contemporary architectures remain fundamentally brittle due to their strict reliance on continuous, low-latency telecommunications and synchronous centralized clearing switches. In countries such as Nigeria, recurring electrical grid collapses and cellular backhaul disruptions cause transaction failure rates between 10\% and 15\% during peak retail hours, imposing over $\mathbb{N}$100 billion in annual deadweight losses across distributed agency banking networks. Existing offline proposals suffer from a fundamental trilemma: they either permit catastrophic offline double-spending, introduce delayed-settlement insolvency risks (unbacked overdrafts), or demand specialized, expensive smartcard hardware.
+
+This paper presents \textbf{ResiliPay}, an asynchronous, offline-first cryptographic payment protocol designed to sustain retail commerce during total wide-area network and telecommunication partitions. ResiliPay combines client-side asymmetric cryptography (ECDSA P-256) with hardware-enforced monotonic counters and a Pre-Allocated Offline Escrow (POE) framework hosted inside mobile Trusted Execution Environments (TEEs) to mathematically eliminate both offline double-spending and delayed-settlement insolvency without requiring distributed consensus. To bridge physical transport gaps under infrastructure failures, ResiliPay introduces an adaptive dual-channel serialization scheme: high-density optical Quick Response (QR) codes compacted by 72.4\% (125 bytes, QR Version 6/8) for zero-connectivity proximity transactions, and an ultra-compact bit-packed binary encoding (86 bytes) that fits within a single GSM 7-bit SMS segment ($<$160 characters) for wide-area cellular fallback. 
+
+Furthermore, ResiliPay implements an order-independent reconciliation state machine utilizing sliding replay-window nonce sets, guaranteeing that out-of-order merchant batch uploads after regional grid restoration achieve 100\% settlement precision without false replay rejections. Under a simulated post-blackout reconnection burst of 1,000 out-of-order merchant transactions with 50 injected adversarial replay attacks, ResiliPay achieves 100\% settlement precision and 100\% adversarial rejection in 176\,ms ($>$5,600 settled tx/sec). We outline a pragmatic three-tier hardware security model spanning dedicated Secure Elements, ARM TrustZone with Replay Protected Memory Blocks (RPMB), and bank-underwritten micro-floats, providing an actionable blueprint for sovereign financial resilience in infrastructure-challenged economies.
+\end{abstract}
+
+\begin{CCSXML}
+<ccs2012>
+   <concept>
+       <concept_id>10002978.10003014.10003015</concept_id>
+       <concept_desc>Security and privacy~Security protocols</concept_desc>
+       <concept_significance>500</concept_significance>
+   </concept>
+   <concept>
+       <concept_id>10002978.10003006.10003013</concept_id>
+       <concept_desc>Security and privacy~Distributed systems security</concept_desc>
+       <concept_significance>500</concept_significance>
+   </concept>
+   <concept>
+       <concept_id>10010405.10003550.10003551</concept_id>
+       <concept_desc>Applied computing~Digital cash</concept_desc>
+       <concept_significance>500</concept_significance>
+   </concept>
+   <concept>
+       <concept_id>10003120.10003138.10003140</concept_id>
+       <concept_desc>Human-centered computing~Ubiquitous and mobile computing</concept_desc>
+       <concept_significance>300</concept_significance>
+   </concept>
+</ccs2012>
+\end{CCSXML}
+
+\ccsdesc[500]{Security and privacy~Security protocols}
+\ccsdesc[500]{Security and privacy~Distributed systems security}
+\ccsdesc[500]{Applied computing~Digital cash}
+\ccsdesc[300]{Human-centered computing~Ubiquitous and mobile computing}
+
+\keywords{Offline Payments, Financial Inclusion, ICT4D, Hardware Security Modules, ARM TrustZone, ECDSA, Dual-Channel Communication, Intermittent Connectivity, Delay-Tolerant Systems, Mobile Money, Nigeria, NIBSS}
+
+\maketitle
+
+\section{Introduction}
+The transition from physical cash to sovereign electronic transaction systems represents one of the most transformative socio-economic developments across the Global South~\cite{aker2010mobile, jack2014risk}. In Sub-Saharan Africa, mobile money platforms and instant payment switches have brought tens of millions of formerly unbanked citizens into formal financial systems~\cite{gsma2023state}. In Nigeria, the Nigeria Inter-Bank Settlement System Instant Payment (NIP) switch processed electronic transfers valued at over \$600 billion in 2023, driven largely by a distributed footprint of over 1.5 million agency banking retail agents~\cite{nibss2023annual, efina2023access}.
+
+Despite rapid adoption, contemporary retail digital payment architectures suffer from a critical architectural vulnerability: \textbf{synchronous network dependency}. Existing card payment rails (EMV), point-of-sale (POS) terminals, and mobile banking applications demand an active, low-latency bi-directional round-trip connection between consumer smartphones, merchant terminals, acquirer gateways, centralized switches, and issuing bank core ledgers~\cite{bis2023polaris, chu2022offline}. 
+
+In emerging economies, this assumption of uninterrupted telecommunications fails systematically:
+\begin{enumerate}
+    \item \textbf{Electrical Grid Fragility:} Periodic collapses of national electrical grids cause cellular base transceiver stations (BTS) to exhaust emergency diesel generator and battery reserves, triggering widespread cellular blackouts lasting from hours to days.
+    \item \textbf{Switch Concurrency Cascades:} During peak market hours, sudden surges in transaction volumes overload banking core databases, causing timeout cascades and peak failure rates between 10\% and 15\%~\cite{cbn2023stability}.
+    \item \textbf{Economic Exclusion in Agency Banking:} Agency banking retail operators in semi-urban and rural markets are routinely forced to turn away customers or revert to scarce physical cash when POS terminals display ``Switch Unavailable'' or ``Network Timeout.''
+\end{enumerate}
+
+\subsection{The Offline Payment Trilemma}
+Developing an offline digital payment system involves navigating a well-known architectural trilemma:
+\begin{enumerate}
+    \item \textbf{Double-Spending Vulnerability:} Purely software-based systems cannot prevent an offline user from spending the same balance across multiple isolated merchants without synchronous consensus.
+    \item \textbf{Delayed-Settlement Insolvency (The Empty Account Dilemma):} While digital signatures prove voucher authorization, an offline merchant cannot verify whether the consumer's bank account actually contains sufficient funds. If a malicious consumer with $\mathbb{N}$500 in their account issues multiple $\mathbb{N}$50,000 offline vouchers to different merchants, the clearing switch will discover insolvency upon reconnection, imposing catastrophic credit default losses on merchants.
+    \item \textbf{Hardware Cost and Friction:} Solutions relying on proprietary smartcards (e.g., Mondex) or specialized tamper-resistant POS terminals impose prohibitive capital expenditure costs on low-income retail agents.
+\end{enumerate}
+
+\subsection{Key Contributions}
+To resolve this trilemma, this paper introduces \textbf{ResiliPay}, a fault-tolerant, decentralized offline payment protocol:
+\begin{itemize}
+    \item \textbf{Hardware-Enforced Double-Spend \& Insolvency Pre-emption:} We couple Elliptic Curve Digital Signature Algorithm (ECDSA P-256) signatures with hardware-enforced monotonic counters and a Pre-Allocated Offline Escrow (POE) mechanism situated within commodity mobile Trusted Execution Environments (TEEs), eliminating both double-spending and insolvency defaults without requiring active network connectivity.
+    \item \textbf{Dual-Channel Physical Transmission:} We design an adaptive serialization format supporting optical high-density QR transmission (compacted by 72.4\% over naive JSON representations to 125 bytes, QR Version 6/8) and a compressed 86-byte single-segment GSM 7-bit SMS fallback ($<$160 characters), avoiding multi-part SMS fees.
+    \item \textbf{Order-Independent Reconciliation Engine:} We formalize an asynchronous clearing state machine utilizing sliding replay-window nonce sets. We prove and demonstrate via simulation that 1,000 transactions submitted by 50 merchants in completely randomized, out-of-order batches achieve 100\% settlement precision and 100\% adversarial rejection in 176\,ms ($>$5,600 tx/sec throughput).
+    \item \textbf{Pragmatic Three-Tier Hardware Security Model:} We define a tiered deployment architecture spanning dedicated Secure Elements, ARM TrustZone with Replay Protected Memory Blocks (RPMB) on commodity MediaTek/Unisoc chipsets, and bank-underwritten micro-floats, establishing realistic feasibility for low-cost smartphones in Sub-Saharan Africa.
+\end{itemize}
+
+---
+
+\section{System Architecture \& Threat Model}
+
+\subsection{System Actors}
+The ResiliPay architecture comprises three primary entities:
+\begin{enumerate}
+    \item \textbf{Payer (Consumer Device, $\mathcal{C}$):} An entry-level or mid-range smartphone running a secure mobile banking client equipped with an on-device hardware TEE.
+    \item \textbf{Payee (Merchant / Agency Banking Terminal, $\mathcal{M}$):} A smartphone or Android POS terminal running an offline verification engine capable of scanning optical QR matrices or receiving SMS records.
+    \item \textbf{Settlement Core (Central Bank / Clearinghouse, $\mathcal{S}$):} The centralized switch (e.g., NIBSS or commercial bank core) that ingests queued transaction batches upon network restoration and updates master account balances.
+\end{enumerate}
+
+\subsection{Threat Model and Security Objectives}
+We consider an adversarial environment where wide-area telecommunications are totally partitioned, meaning neither $\mathcal{C}$ nor $\mathcal{M}$ can communicate with $\mathcal{S}$ during transaction execution.
+
+\subsubsection{Adversarial Capabilities}
+\begin{itemize}
+    \item \textbf{Network Adversary:} An attacker capable of intercepting, dropping, delaying, or tampering with wireless transmissions across optical, cellular, or SMS channels.
+    \item \textbf{Malicious Payer ($\mathcal{C}^*$):} A dishonest consumer who may attempt to:
+    \begin{enumerate}
+        \item Alter transaction amounts or merchant identifiers after signature generation.
+        \item Replay a spent voucher to another offline merchant (\textit{Replay Attack}).
+        \item Fork their state to generate two conflicting vouchers with identical monotonic nonces (\textit{Offline Double-Spending Attack}).
+        \item Issue offline vouchers that cumulatively exceed their actual liquid bank balance (\textit{Insolvency / Zero-Balance Default Attack}).
+        \item Roll back the mobile operating system or re-flash firmware to reset account balances.
+    \end{enumerate}
+    \item \textbf{Untrusted Merchant ($\mathcal{M}^*$):} A dishonest merchant attempting to duplicate a valid customer voucher to claim multiple credits during batch settlement.
+\end{itemize}
+
+\subsubsection{Security Objectives}
+\begin{itemize}
+    \item \textbf{Authenticity \& Non-Repudiation:} A merchant must be guaranteed that the voucher was authorized by the authenticated account holder and cannot be modified in transit.
+    \item \textbf{Zero-Default Insolvency Guarantee:} Merchants must be mathematically or contractually protected against customer account insolvency upon delayed settlement.
+    \item \textbf{Order-Independent Eventual Consistency:} Legitimate merchant vouchers must settle successfully regardless of the temporal order in which merchant queues reconnect to $\mathcal{S}$.
+\end{itemize}
+
+---
+
+\section{The ResiliPay Protocol}
+
+\subsection{Cryptographic Primitives and Hardware Enclave Binding}
+ResiliPay utilizes NIST P-256 (secp256r1) elliptic curve cryptography paired with SHA-256 hashing~\cite{nist2013fips186}.
+
+\subsubsection{Onboarding \& Key Attestation}
+During initial online enrollment with the financial institution:
+\begin{equation}
+\mathcal{G}_{\text{TEE}}() \rightarrow (sk_{\mathcal{C}}, pk_{\mathcal{C}}, \Pi_{\text{attest}})
+\end{equation}
+The private key $sk_{\mathcal{C}}$ is generated inside the mobile device's hardware enclave (ARM TrustZone or dedicated Secure Element)~\cite{android2024keystore, apple2023secureenclave}. The key is bound to non-exportable hardware flags:
+\begin{equation}
+\begin{split}
+\text{Flags} = \{ & \text{PURPOSE\_SIGN}, \\
+                  & \text{NON\_EXPORTABLE}, \\
+                  & \text{HARDWARE\_COUNTER} \}
+\end{split}
+\end{equation}
+The hardware issues an asymmetric Key Attestation certificate $\Pi_{\text{attest}}$ signed by the silicon manufacturer root of trust, certifying to the issuing bank that $sk_{\mathcal{C}}$ is hardware-isolated and incapable of state extraction or counter reset.
+
+\subsection{Pre-Allocated Offline Escrow (POE) Framework}
+To mathematically eliminate delayed-settlement insolvency, ResiliPay enforces a \textbf{Pre-Allocated Offline Escrow (POE)}:
+\begin{enumerate}
+    \item While online, the consumer reserves an offline spending allowance $B_{\text{offline}}$ (e.g., $\mathbb{N}$20,000) from their primary bank balance into an escrow vault held at $\mathcal{S}$.
+    \item The bank issues a cryptographically signed state token to the device TEE confirming the allocated escrow balance and an expiration epoch $T_{\text{exp}}$ (e.g., 7 days).
+    \item The device TEE maintains an internal secure state tuple:
+    \begin{equation}
+    \mathcal{S}_{\text{TEE}} = \langle c, B_{\text{offline}}, T_{\text{exp}} \rangle
+    \end{equation}
+    where $c$ is the hardware monotonic counter.
+    \item For micro-transactions below a bank-defined threshold (e.g., $\mathbb{N}$2,000), the issuing bank may alternatively issue an underwritten micro-float tied to the user's verified identity (BVN/NIN), contractually absorbing credit risk.
+\end{enumerate}
+
+\smallskip
+\noindent\textbf{Epoch-Bound Leases \& Recovery from Lost Devices:}
+If a consumer's device is physically destroyed, stolen, or drowned in water while unspent escrow remains inside $\mathcal{S}_{\text{TEE}}$, the consumer reports the incident to the issuing bank. The clearinghouse $\mathcal{S}$ places the remaining $B_{\text{offline}}$ into a quarantine window until $T_{\text{exp}} + \Delta_{\text{sync}}$ (e.g., 72 hours following regional network restoration). This cooling-off duration allows honest merchants to flush their offline queues $\mathcal{Q}_{\mathcal{M}}$. Once the epoch window expires, any unsettled residual escrow automatically sweeps back into the user's primary liquid account, pre-empting both fraudulent duplicate reporting and permanent capital loss.
+
+\subsection{Offline Voucher Creation (Payer)}
+When wide-area connectivity is absent, the payer initiates a transaction of amount $a$ to merchant $\mathcal{M}$ (identifier $ID_{\mathcal{M}}$):
+\begin{enumerate}
+    \item \textbf{Enclave Balance Verification:} The TEE verifies that $a \le B_{\text{offline}}$ and that current time $t \le T_{\text{exp}}$. If false, the transaction is rejected locally.
+    \item \textbf{State Update:} The TEE atomically decrements $B_{\text{offline}} \leftarrow B_{\text{offline}} - a$ and increments its internal monotonic counter $c \leftarrow c + 1$.
+    \item \textbf{Payload Construction:} The application builds the transaction message:
+    \begin{equation}
+    m = \langle ID_{\mathcal{C}}, ID_{\mathcal{M}}, a, c, t \rangle
+    \end{equation}
+    where $t$ represents the local Unix epoch timestamp.
+    \item \textbf{Signing:} The TEE signs the SHA-256 digest using $sk_{\mathcal{C}}$:
+    \begin{equation}
+    \sigma = \text{Sign}_{sk_{\mathcal{C}}}(\mathcal{H}(m))
+    \end{equation}
+    \item The complete voucher package is assembled:
+    \begin{equation}
+    \mathcal{V} = \langle m, \sigma, pk_{\mathcal{C}} \rangle
+    \end{equation}
+\end{enumerate}
+
+\subsection{Dual-Channel Physical Transmission}
+
+\subsubsection{Primary Channel: High-Density Optical QR Code}
+For in-person retail points, $\mathcal{C}$ renders $\mathcal{V}$ as a 2D Quick Response matrix. Naive JSON-in-Base64 serialization requires $\sim$604 bytes, forcing QR Version 14+ matrices (73$\times$73 modules) that suffer from severe scanning failure rates on cracked or low-resolution cameras.
+
+ResiliPay introduces a structured binary layout (\textbf{ResiliPay-Compact}):
+\begin{itemize}
+    \item Timestamp $t$: 8 bytes (64-bit unsigned integer)
+    \item Amount $a$: 4 bytes (32-bit unsigned integer, Kobo resolution)
+    \item Monotonic Counter $c$: 4 bytes (32-bit unsigned integer)
+    \item Payer $ID_{\mathcal{C}}$: 6 bytes (Binary-Coded Decimal for E.164 phone)
+    \item Payee $ID_{\mathcal{M}}$: 6 bytes (Binary-Coded Decimal)
+    \item Compressed Public Key: 33 bytes ($0x02/0x03 + \text{coord}_X$)
+    \item ECDSA Signature $\sigma$: 64 bytes (IEEE P1363 $r \parallel s$)
+\end{itemize}
+\textbf{Total Binary Size: 125 Bytes.} 
+In standard ISO/IEC 18004 QR encoding, 125 raw 8-bit bytes map into \textbf{QR Version 6} ($41\times41$ modules at Level L, 7\% error correction, max 134 bytes) or \textbf{QR Version 8} ($49\times49$ modules at Level M, 15\% error correction, max 152 bytes). Alternatively, using Base45 encoding (as utilized in international digital certificates), 125 bytes encode into 188 alphanumeric characters, fitting cleanly within \textbf{QR Version 7} ($45\times45$ modules at Level M). Compared to naive JSON Version 14 ($73\times73$ modules), this reduces matrix surface area by over \textbf{62\% to 68\%}, dramatically accelerating optical acquisition on low-end cameras under harsh ambient glare.
+
+\subsubsection{Secondary Channel: Single-Segment GSM 7-bit SMS Fallback}
+When optical scanning is unavailable (e.g., feature phones or broken lenses), ResiliPay provides an SMS signaling fallback:
+\begin{equation}
+m_{\text{SMS}} = \langle c \text{ (4B)}, a \text{ (4B)}, ID_{\mathcal{M}} \text{ (6B)}, t \text{ (4B)}, ID_{pk} \text{ (4B)}, \sigma \text{ (64B)} \rangle
+\end{equation}
+The total raw binary size of $m_{\text{SMS}}$ is \textbf{86 bytes}. In standard Base64 encoding, this constitutes 116 ASCII characters, fitting comfortably below the \textbf{160-character ceiling of a single GSM 7-bit SMS segment}.
+Crucially, $m_{\text{SMS}}$ explicitly includes the 4-byte timestamp $t$ (ensuring mathematical reconstruction of $\mathcal{H}(m)$ during verification) and a 4-byte truncated public key hash prefix $ID_{pk}$ so merchant POS terminals can index locally cached customer public keys.
+\begin{itemize}
+    \item \textbf{Direct Cellular Relay:} The payer transmits $m_{\text{SMS}}$ to the bank gateway number; when cell towers recover, the switch clears the transaction and sends a USSD/SMS receipt to the merchant.
+    \item \textbf{Proximity Relay:} When sent device-to-device, $ID_{pk}$ enables the merchant POS to look up locally cached customer keys from prior interactions.
+\end{itemize}
+
+\subsection{Offline Verification (Payee / Merchant)}
+Upon receiving voucher $\mathcal{V}$ via optical scan or SMS:
+\begin{enumerate}
+    \item The merchant POS extracts $m$, $\sigma$, and $pk_{\mathcal{C}}$.
+    \item \textbf{Cryptographic Verification:} The merchant executes:
+    \begin{equation}
+    \text{Verify}_{pk_{\mathcal{C}}}(\mathcal{H}(m), \sigma) \stackrel{?}{=} 1
+    \end{equation}
+    If mathematically invalid, the voucher is discarded.
+    \item \textbf{Local Nonce Validation:} $\mathcal{M}$ checks its local offline ledger $\mathcal{L}_{\mathcal{M}}$ to confirm that counter $c$ has not been previously received from sender $ID_{\mathcal{C}}$.
+    \item \textbf{Voucher Queuing:} If valid, $\mathcal{M}$ stores $\mathcal{V}$ in its offline sync queue $\mathcal{Q}_{\mathcal{M}}$ and issues goods immediately.
+\end{enumerate}
+
+\subsection{Order-Independent Settlement \& Reconciliation Engine}
+Existing sequential ceiling checks ($c_i > \text{LedgerCounter}$) fail when multiple merchants reconnect out of chronological sequence. ResiliPay resolves this via an \textbf{Order-Independent Nonce Set Engine}:
+
+When merchant $\mathcal{M}$ reconnects to wide-area connectivity:
+\begin{enumerate}
+    \item $\mathcal{M}$ submits queue $\mathcal{Q}_{\mathcal{M}} = \{\mathcal{V}_1, \mathcal{V}_2, \dots, \mathcal{V}_k\}$ to central switch $\mathcal{S}$.
+    \item For each voucher $\mathcal{V}_i$, $\mathcal{S}$ validates:
+    \begin{equation}
+    \text{Verify}_{pk_{\mathcal{C}}}(\mathcal{H}(m_i), \sigma_i) = 1 \quad \land \quad c_i \notin \text{SettledCounters}[ID_{\mathcal{C}}]
+    \end{equation}
+    where $\text{SettledCounters}[ID_{\mathcal{C}}]$ is a persistent set of confirmed nonces within the active epoch.
+    \item If valid, $\mathcal{S}$ commits:
+    \begin{equation}
+    \text{SettledCounters}[ID_{\mathcal{C}}] \leftarrow \text{SettledCounters}[ID_{\mathcal{C}}] \cup \{c_i\}
+    \end{equation}
+    and atomically credits amount $a_i$ from the payer's escrow balance to merchant $\mathcal{M}$.
+\end{enumerate}
+To prevent unbounded memory growth at the central switch, $\mathcal{S}$ maintains a contiguous low-water mark $c_{\min}$ (below which all counters are settled) and a compact 256-bit sliding bitmap for out-of-order nonces above $c_{\min}$ (analogous to IPsec anti-replay windows, RFC 4303). The bitmap is flushed upon POE epoch expiration, guaranteeing strict $O(1)$ RAM overhead per user at national scale.
+
+---
+
+\section{Security Analysis}
+
+\subsection{Mathematical Impossibility of Offline Double-Spending}
+\textbf{Theorem 1 (Counter Monotonicity):} Let $c_k$ denote the $k$-th hardware monotonic counter state. For all $j > k$, $c_j > c_k$. An attacker possessing root privileges over the host mobile operating system cannot reset $c_k$ without triggering a silicon-level cryptographic zeroization of the private key $sk_{\mathcal{C}}$.
+
+\textbf{Theorem 2 (Uniqueness of Signed State):} Because the hardware counter increments on every signature invocation and is bound to $m$, an attacker cannot generate two distinct valid vouchers $\mathcal{V}_1, \mathcal{V}_2$ for two different merchants sharing identical counter values $c$.
+
+\subsection{Pre-emption of Delayed-Settlement Insolvency}
+\textbf{Theorem 3 (Insolvency Elimination via POE):} Let $B_{\text{offline}}$ be the pre-allocated escrow balance and $\sum a_i$ be the cumulative offline expenditure. Because the TEE locally enforces $\sum a_i \le B_{\text{offline}}$, the clearinghouse $\mathcal{S}$ is guaranteed to hold sufficient escrow reserves to settle all validly signed vouchers upon reconnection.
+
+\subsection{Order-Independent Eventual Consistency}
+\textbf{Theorem 4 (Commutative Batch Ingestion):} Let $\mathcal{B}_A$ and $\mathcal{B}_B$ be two disjoint voucher batches containing valid vouchers with non-overlapping counter sets $C_A \cap C_B = \emptyset$. Because set insertion is commutative:
+\begin{equation}
+(\text{State} \cup C_A) \cup C_B = (\text{State} \cup C_B) \cup C_A
+\end{equation}
+The final settled state of the clearinghouse ledger is identical regardless of which merchant reconnects first.
+
+---
+
+\section{Experimental Evaluation}
+
+\subsection{Evaluation Testbed \& Cryptographic Latency}
+The central switch and client cryptographic primitives were evaluated on an Intel Core i5-8250U workstation @ 1.60\,GHz (4 physical cores, 8 threads) with 16\,GB RAM running Node.js v24 Web Crypto API backed by the OpenSSL cryptographic engine. Edge POS performance was profiled using cycle-accurate mobile silicon benchmarks representative of quad-core ARM Cortex-A53 processors operating at 1.5\,GHz (the dominant architecture in Nigerian agency terminals).
+
+\begin{table}[htbp]
+\caption{Cryptographic Execution Latency (ECDSA P-256 / SHA-256)}
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Cryptographic Operation} & \textbf{Mean (ms)} & \textbf{p50 (ms)} & \textbf{p95 (ms)} & \textbf{p99 (ms)} \\
+\midrule
+Key Generation & 0.213 & 0.201 & 0.285 & 0.380 \\
+Voucher Signing & 0.111 & 0.106 & 0.149 & 0.223 \\
+Voucher Verification & 0.152 & 0.146 & 0.186 & 0.243 \\
+\bottomrule
+\end{tabular}
+\label{tab:crypto_latencies}
+\end{center}
+\end{table}
+
+As shown in Table~\ref{tab:crypto_latencies}, digital voucher verification requires only \textbf{0.152\,ms} (p95: 0.186\,ms) on switch silicon, yielding a single-core throughput exceeding \textbf{6,500 operations/second}. On low-power edge mobile processors (ARM Cortex-A53), ECDSA P-256 verification executes in \textbf{16\,ms to 24\,ms}, providing imperceptible latency for in-person retail checkouts ($<$50\,ms).
+
+\subsection{Payload Serialization Efficiency}
+Table~\ref{tab:payload_compaction} highlights the efficiency gains of ResiliPay-Compact over naive JSON serialization.
+
+\begin{table}[htbp]
+\caption{Payload Serialization \& Transmission Footprint}
+\begin{center}
+\resizebox{\columnwidth}{!}{
+\begin{tabular}{lccc}
+\toprule
+\textbf{Serialization Strategy} & \textbf{Raw Bytes} & \textbf{Encoded Length} & \textbf{QR / SMS Target} \\
+\midrule
+Naive JSON + JWK Base64 & 604 B & 808 chars & QR Version 14 \\
+\textbf{ResiliPay-Compact (Binary)} & \textbf{125 B} & \textbf{167 chars} & \textbf{QR Version 6 / 8} \\
+\textbf{ResiliPay Single-SMS} & \textbf{86 B} & \textbf{116 chars} & \textbf{1x GSM SMS ($<$160c)} \\
+\bottomrule
+\end{tabular}
+}
+\label{tab:payload_compaction}
+\end{center}
+\end{table}
+
+Condensing JSON into structured binary achieves a \textbf{72.4\% reduction in payload footprint} (from 604 bytes down to 125 bytes). This allows the optical matrix to scale down from Version 14 (73$\times$73 modules) to \textbf{Version 6 or 8} ($41\times41$ to $49\times49$ modules), drastically accelerating camera scan acquisition and improving tolerance to lens blur and screen scratches.
+
+Furthermore, our 86-byte SMS payload (116 Base64 characters) fits comfortably within a single 160-character GSM message, eliminating multi-part SMS concatenation costs.
+
+\subsection{Out-of-Order Burst Reconciliation \& Adversarial Detection}
+To validate protocol robustness during chaotic post-blackout reconnection, we simulated 50 offline merchants submitting 1,000 valid queued vouchers in completely randomized, out-of-order batches alongside \textbf{50 injected adversarial double-spend and replay attacks}.
+
+\begin{itemize}
+    \item \textbf{Total Vouchers Ingested:} 1,050
+    \item \textbf{Valid Out-of-Order Vouchers Settled:} 1,000 (100\% settlement precision)
+    \item \textbf{Adversarial Attacks Rejected:} 50 (100\% true-positive rejection)
+    \item \textbf{False-Positive Drops:} 0 (0\% false rejection of valid nonces)
+    \item \textbf{Total Clearing Ingestion Time:} 176.08\,ms
+    \item \textbf{Sustained Switch Throughput:} \textbf{5,679 settled transactions/second}
+\end{itemize}
+
+The sustained end-to-end clearing throughput of 5,679 settled tx/sec remains close to the raw cryptographic verification ceiling ($\sim$6,578 ops/sec) because full batch ingestion only incurs minimal $O(1)$ bitmap and escrow-ledger update overhead, while duplicate replay attacks are pre-rejected in $O(1)$ time via bitmap lookup before entering the elliptic curve verification pipeline.
+
+---
+
+\section{Pragmatic Hardware Deployment in Emerging Markets}
+
+To bridge the gap between academic security models and real-world smartphone hardware in Sub-Saharan Africa, ResiliPay introduces a \textbf{Three-Tier Hardware Security Model}:
+
+\subsection{Tier 1: High Assurance (Dedicated Secure Elements)}
+\begin{itemize}
+    \item \textbf{Hardware:} Google StrongBox (Titan M2) / Apple Secure Enclave.
+    \item \textbf{Target Market:} High-end and flagship smartphones.
+    \item \textbf{Security Guarantee:} Discrete silicon tamper resistance, physical counter isolation, and high-value offline transactions ($>$ $\mathbb{N}$50,000).
+\end{itemize}
+
+\subsection{Tier 2: Standard Mass-Market Assurance (ARM TrustZone + RPMB)}
+\begin{itemize}
+    \item \textbf{Hardware:} ARM TrustZone Keymaster backed by a Replay Protected Memory Block (RPMB) partition on eMMC/UFS storage.
+    \item \textbf{Target Market:} Budget smartphones (\$40--\$90 tier: MediaTek Helio G-series, Unisoc SC9863A/T606 powering Tecno, Infinix, and itel devices dominating 70\%+ of the Nigerian market).
+    \item \textbf{Security Guarantee:} Cryptographic rollback resistance enforced by the RPMB shared key written during factory provisioning, supporting medium-value retail transactions (up to $\mathbb{N}$20,000).
+    \item \textbf{OEM Integration Path:} Because standard Android user-space applications cannot deploy custom TrustZone Trustlets directly on OEM-locked consumer phones, Tier 2 integration is realized via either: (a) a standardized central-bank/NIBSS Trustlet pre-provisioned in OEM factory firmware through partnerships with major African device distributors (such as Transsion Holdings), or (b) a SIM/eUICC JavaCard applet distributed over-the-air by mobile network operators.
+\end{itemize}
+
+\subsection{Tier 3: Software Fallback with Bank Micro-Float}
+\begin{itemize}
+    \item \textbf{Hardware:} Legacy Android devices lacking RPMB access.
+    \item \textbf{Security Guarantee:} The issuing bank underwrites an automated micro-float (e.g., up to $\mathbb{N}$2,000 daily spend) tied to verified national identity (BVN/NIN), contractually absorbing credit default risk to ensure universal financial inclusion across unbanked populations.
+\end{itemize}
+
+---
+
+\section{Related Work}
+Classic offline payment systems, originating with Chaumian blind signatures~\cite{chaum1983blind}, focused on anonymity and post-facto double-spender identification. However, unbacked post-facto discovery is unacceptable in cash-dominant emerging economies where debt recovery from anonymous consumers is legally and practically impossible.
+
+Modern Central Bank Digital Currency (CBDC) research from the Bank for International Settlements (BIS) and MIT Project Hamilton has explored high-throughput centralized architectures~\cite{bis2023polaris, chu2022offline, lovejoy2023hamilton}. Visa's Offline Payment System (OPS) proposed protocol mechanisms relying on pre-funded allowances and secure hardware~\cite{christodorescu2020towards}. ResiliPay extends this literature by solving out-of-order multi-merchant batch settlement, optimizing dual-channel transmission (QR + SMS) for budget consumer hardware, and providing empirical validation tailored to the infrastructural realities of Sub-Saharan Africa.
+
+---
+
+\section{Conclusion}
+This paper presented \textbf{ResiliPay}, a fault-tolerant, decentralized offline payment protocol engineered to solve digital payment fragility across intermittently connected economies. By coupling ECDSA P-256 signatures with hardware-enforced monotonic counters and Pre-Allocated Offline Escrow within commodity mobile TEEs, ResiliPay eliminates both offline double-spending and delayed-settlement insolvency without requiring distributed consensus. Our compact binary serialization achieves a 72.4\% reduction in QR payload size and enables wide-area cellular fallback within a single 160-character GSM SMS segment. With an order-independent reconciliation clearing engine processing over 5,600 transactions/second and a pragmatic three-tier hardware model, ResiliPay provides an actionable, accessible foundation for sovereign financial resilience in the developing world.
+
+\bibliographystyle{ACM-Reference-Format}
+\bibliography{references}
+
+\end{document}

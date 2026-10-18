@@ -1,0 +1,27 @@
+{
+  "iterations": 1000,
+  "keyGen": {
+    "avgMs": 0.213
+  },
+  "sign": {
+    "avgMs": 0.111,
+    "p50Ms": 0.106,
+    "p95Ms": 0.149,
+    "p99Ms": 0.223
+  },
+  "verify": {
+    "avgMs": 0.152,
+    "p50Ms": 0.146,
+    "p95Ms": 0.186,
+    "p99Ms": 0.243,
+    "opsPerSec": 6590
+  },
+  "payloadComparison": {
+    "baselineBytes": 604,
+    "compactBinaryBytes": 125,
+    "compactBase64Chars": 167,
+    "singleSmsBinaryBytes": 86,
+    "singleSmsBase64Chars": 115,
+    "compressionPercent": 72.4
+  }
+}

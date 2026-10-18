@@ -1,0 +1,8 @@
+{
+  "totalVouchers": 1050,
+  "settled": 1000,
+  "rejected": 50,
+  "outOfOrderSuccessRate": "100%",
+  "durationMs": 176.08,
+  "throughputTps": 5679
+}
